@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Rate curves</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="app">
+    <header>
+      <div>
+        <h1>Rate curves</h1>
+        <p>Betaflight and Actual, using the Velocidrone formulas.</p>
+      </div>
+      <div class="switch" role="group" aria-label="Rate system">
+        <button type="button" id="mode-bf" aria-pressed="true">Betaflight</button>
+        <button type="button" id="mode-actual" aria-pressed="false">Actual</button>
+      </div>
+    </header>
+
+    <div class="layout">
+      <aside>
+        <p id="help" class="help"></p>
+        <div id="fields"></div>
+        <div class="actions">
+          <button type="button" id="copy" class="ghost">Copy roll to pitch and yaw</button>
+          <button type="button" id="convert">Convert to Actual</button>
+          <p id="convert-help">Matches center and max, then fits the shape. Values snap to steps you can enter.</p>
+          <button type="button" id="reset" class="ghost">Reset</button>
+        </div>
+      </aside>
+
+      <section class="stage">
+        <div class="graph-bar">
+          <div class="chips" id="chips">
+            <button type="button" class="chip" data-axis="roll" style="--c:#ff5d6c" aria-pressed="true"><i></i>Roll</button>
+            <button type="button" class="chip" data-axis="pitch" style="--c:#3dce86" aria-pressed="true"><i></i>Pitch</button>
+            <button type="button" class="chip" data-axis="yaw" style="--c:#5aa2ff" aria-pressed="true"><i></i>Yaw</button>
+          </div>
+          <label class="slope"><input type="checkbox" id="slope"> Center slope</label>
+        </div>
+
+        <div class="plot" id="plot">
+          <canvas id="graph"></canvas>
+          <div id="tip" class="tip" hidden></div>
+        </div>
+
+        <div id="banner" class="banner" hidden>
+          <p class="banner-text"></p>
+          <button type="button" id="dismiss">Hide</button>
+        </div>
+
+        <div id="cards" class="cards"></div>
+        <div id="notes" class="notes" hidden></div>
+
+        <details class="formula">
+          <summary>Formulas</summary>
+          <div class="formula-body">
+            <p>Stick <em>s</em> runs from −1 to 1. That is the deflection from center, divided by 500 µs. Both curves are odd: left stick mirrors the right.</p>
+            <h3>Betaflight</h3>
+            <p>Rc expo reshapes the stick, then Rc rate scales it. Rate divides by a shrinking number, which bends the curve even when expo is 0. The divisor uses the raw stick, not the expo-shaped one.</p>
+            <pre>shaped = s·|s|³·expo + s·(1 − expo)
+K = 200 · R
+R = rc rate, or rc rate + 14.54·(rc rate − 2) when rc rate &gt; 2
+deg/s = K · shaped / clamp(1 − |s|·rate, 0.01, 1)</pre>
+            <p>Center, the slope at mid-stick, is K·(1 − expo). Max, at full stick, is K / clamp(1 − rate, 0.01, 1). Expo does not change the max.</p>
+            <h3>Actual</h3>
+            <p>Center is that same slope, in deg/s. Max rate is full stick. Expo mixes a square term with a sixth-power term, which holds the middle down.</p>
+            <pre>g = |s| · (s⁵·expo + s·(1 − expo))
+deg/s = s·center + max(0, max − center) · g</pre>
+            <h3>Conversion</h3>
+            <p>Betaflight to Actual keeps the measured center and max, then picks the expo with the smallest error. Actual to Betaflight keeps that center and max, then searches the mix of Rc rate, Rate, and Rc expo. The curves are different families, so a few deg/s of error remain. The flight code also clamps the setpoint at ±1998 deg/s. The graph draws the unclamped shape and marks that line when a curve crosses it.</p>
+          </div>
+        </details>
+      </section>
+    </div>
+  </div>
+  <script src="app.js"></script>
+</body>
+</html>
